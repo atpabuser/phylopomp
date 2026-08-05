@@ -70,12 +70,15 @@ static double bdss_event_rates
   event_rate += (*rate = alpha*(1-disc)); rate++;
   *logpi = 0; logpi++;
   // 1: N->S birth, s=(0,0) or s=(0,1) — parent N untracked
+  // Support-safe (uniform) proposal: Phi_ns^0 = 1-ellS/S is an S-side
+  // quantity (KLI Prop. 2 mirror) and does not depend on N,ell1, so pi
+  // must not be allowed to vanish while N>0.
   alpha = lambda_ns*N;
-  pi = (N > 0) ? 1-ell1/N : 1;
+  pi = 1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
   // 2: N->S birth, s=(1,0) — parent N tracked, lineage to S
-  pi = 1-pi;
+  pi = ell1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell1); logpi++;
   // 3: S->S birth (within-type, disc penalty)
@@ -85,12 +88,15 @@ static double bdss_event_rates
   event_rate += (*rate = alpha*(1-disc)); rate++;
   *logpi = 0; logpi++;
   // 4: S->N birth, s=(0,0) or s=(1,0) — parent S untracked
+  // Support-safe (uniform) proposal: Phi_sn^0 = 1-ellN/N is an N-side
+  // quantity (KLI Prop. 2 mirror) and does not depend on S,ell2, so pi
+  // must not be allowed to vanish while S>0.
   alpha = lambda_sn*S;
-  pi = (S > 0) ? 1-ell2/S : 1;
+  pi = 1/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
   // 5: S->N birth, s=(0,1) — parent S tracked, lineage to N
-  pi = 1-pi;
+  pi = ell2/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell2); logpi++;
   // 6: death N

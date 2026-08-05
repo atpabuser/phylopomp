@@ -60,14 +60,17 @@ static double bdei_event_rates
   double alpha, pi;
   *penalty = 0;
   // 0: birth (lambda*I), s=(0,0) or s=(0,1)
+  // Support-safe (uniform) proposal: the identity-coloring alternative has
+  // Phi_B^0 = (E-ellE)/E, independent of I,ellI (KLI Prop. 2(1) collapse),
+  // so pi must not depend on I,ellI in a way that can vanish while I>0.
   assert(I >= ellI);
   assert(ellI >= 0);
   alpha = lambda*I;
-  pi = (I > 0) ? 1-ellI/I : 0;
+  pi = 1/(ellI+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
   // 1: birth (lambda*I), s=(1,0)
-  pi = (I > 0) ? ellI/I : 0;
+  pi = ellI/(ellI+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ellI); logpi++;
   // 2: progression (sigma*E), s=(0,0)
