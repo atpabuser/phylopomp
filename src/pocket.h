@@ -76,22 +76,14 @@ protected:
   };
 
 public:
+  //! Repairs the links green balls and their names.
   //! Needed in deserialization.
-  //! This function repairs the links green balls and their names.
   void repair_owners (const std::unordered_map<name_t,node_t*>& node_name,
                       std::unordered_map<name_t,ball_t*> *ball_name) {
-    std::unordered_map<name_t,node_t*>::const_iterator n;
     for (ball_t *b : *this) {
       if (b->is(green)) {
-        n = node_name.find(b->uniq);
-        if (n != node_name.end()) {
-          node_t *p = n->second;
-          b->owner() = p;
-          ball_name->insert({b->uniq,b});
-        } else {
-          err("in '%s' (%s line %d): cannot find ball %zd", // #nocov
-              __func__,__FILE__,__LINE__,b->uniq);          // #nocov
-        }
+        b->owner() = node_name.at(b->uniq);
+        (*ball_name)[b->uniq] = b;
       }
     }
   };
@@ -128,21 +120,12 @@ public:
   };
   //! retrieve the first ball of the specified color.
   ball_t* ball (const color_t c) const {
+    ball_t *a = 0;
     for (ball_t *b : *this) {
-      if (b->color == c) return b;
+      if (b->color == c) a = b;
     }
-    err("in '%s' (%s line %d): no ball of color %s", // # nocov
-        __func__,__FILE__,__LINE__,colores[c]);      // # nocov
-    return 0;
-  };
-  //! return a pointer to another ball
-  ball_t* other (const ball_t *b) const {
-    for (ball_t *a : *this) {
-      if (a != b) return a;
-    }
-    err("error in '%s' (%s line %d): there is no other.", // # nocov
-        __func__,__FILE__,__LINE__);                      // # nocov
-    return 0;
+    assert(a != 0);
+    return a;
   };
   //! human/machine-readable info
   string_t yaml (string_t tab = "") const;

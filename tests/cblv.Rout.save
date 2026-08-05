@@ -1,0 +1,169 @@
+
+R version 4.6.1 (2026-06-24) -- "Happy Hop"
+Copyright (C) 2026 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> options(tidyverse.quiet=TRUE,digits=3)
+> suppressPackageStartupMessages({
++   library(phylopomp)
++ })
+> set.seed(847110120)
+> 
+> simulate(
++   "SEIR",
++   Beta=100,pop=100,
++   time=1
++ ) -> x
+> 
+> x |> cblv() -> y1
+> y1
+         tip   node
+ [1,] 0.9843 0.1808
+ [2,] 0.3413 0.0775
+ [3,] 0.8373 0.1523
+ [4,] 0.7388 0.2586
+ [5,] 0.0562 0.0651
+ [6,] 0.3359 0.0439
+ [7,] 0.8101 0.3323
+ [8,] 0.0000 0.1222
+ [9,] 0.3388 0.0709
+[10,] 0.6548 0.0640
+[11,] 0.6706 0.0132
+[12,] 0.4996 0.0000
+[13,] 0.9360 0.0245
+[14,] 0.6876 0.1003
+[15,] 0.0806 0.0911
+[16,] 0.6024 0.0000
+[17,] 0.9179 0.2313
+[18,] 0.3465 0.5033
+[19,] 0.0000 0.1186
+[20,] 0.6656 0.0000
+[21,] 0.8999 0.0287
+[22,] 0.2002 0.0345
+[23,] 0.0000 0.0000
+[24,] 0.8742 0.5899
+[25,] 0.0000 0.0150
+[26,] 0.6744 0.1301
+[27,] 0.3144 0.1077
+[28,] 0.3321 0.0143
+[29,] 0.7756 0.6702
+[30,] 0.0000 0.0000
+[31,] 0.7975 0.0000
+> stopifnot(all(cblv(parse_cblv(y1,0,1))==y1))
+> 
+> x |> getInfo(cblv=TRUE) -> y2
+> stopifnot(y1==y2$cblv)
+> 
+> n1 <- parse_newick("(a:4,(:1,(b:2,c:1):1):2):1;(:8,:3):1;")
+> x1 <- cblv(n1)
+> n2 <- parse_newick("(:8,:3):1;(a:4,(:1,(b:2,c:1):1):2):1;")
+> x2 <- cblv(n2)
+> n3 <- parse_newick("(:8,:3):1;((:1,(:2,:1):1):2,:4):1;")
+> x3 <- cblv(n3)
+> n4 <- parse_newick("(:8,:3):1;(((:2,:1):1,:1):2,:4):1;")
+> x4 <- cblv(n4)
+> stopifnot(
++   x1 == x2,
++   x2 == x3,
++   x3 == x4
++ )
+> 
+> n <- parse_newick("((a:4,((b:2,c:1):1)):0.5,d:2.5):0.5;")
+> x = cblv(n)
+> x
+     tip node
+[1,] 5.0  1.0
+[2,] 3.0  2.0
+[3,] 1.0  0.5
+[4,] 2.5  0.0
+> stopifnot(
++   x[,1] == c(5.0,3.0,1.0,2.5),
++   x[,2] == c(1.0,2.0,0.5,0.0)
++ )
+> 
+> n <- parse_newick("((a:4,((b:2,c:1):1)):0.5,d:2.5):0;")
+> x = cblv(n)
+> x
+     tip node
+[1,] 4.5  0.5
+[2,] 3.0  1.5
+[3,] 1.0  0.0
+[4,] 2.5  0.0
+> stopifnot(
++   x[,1] == c(4.5,3.0,1.0,2.5),
++   x[,2] == c(0.5,1.5,0.0,0.0)
++ )
+> 
+> ## one ternary node, one zero-length branch
+> n1 <- parse_newick("((a:4,((b:2,c:1,e:3):1)):1,d:3):1;")
+> x1 <- cblv(n1)
+> stopifnot(
++   x1[,1] == c(6.0,2.0,1.0,4.0,3.0),
++   x1[,2] == c(3.0,3.0,2.0,1.0,0.0)
++ )
+> 
+> ## one ternary node, without zero-length branch
+> n2 <- parse_newick("((a:4,(b:2,c:1,e:3):1):1,d:3):1;")
+> x2 <- cblv(n2)
+> stopifnot(x1==x2)
+> 
+> n <- c(
++   "((((:0.041,(:0.044,:0.32):0.62):0.2,((:0.35,:0.71):0.058,:0.21):0.54):0.064,(:0.54,:0.99):0.37):0.091);",
++   "((((:0.33,:0.93):0.076,(:0.11,:0.27):0.57):0.039,(:0.2,:0.6):0.46):0.34);",
++   "((((:0.091,:0.14):0.089,:0.1):0.037,:0.36):0.86);"
++ )
+> x <- cblv(parse_newick(paste(n,collapse="")))
+> x1 <- cblv(parse_newick(n[1]))
+> x2 <- cblv(parse_newick(n[2]))
+> x3 <- cblv(parse_newick(n[3]))
+> stopifnot(
++   x == rbind(x1,x2,x3),
++   all(cblv(parse_cblv(x,0,1.5))==x),
++   all(cblv(parse_cblv(x1,0,1.5))==x1),
++   all(cblv(parse_cblv(x2,0,1.5))==x2),
++   all(cblv(parse_cblv(x3,0,1.5))==x3)
++ )
+> 
+> x <- matrix(c(3,2,1,1,2,0),3,2)
+> parse_cblv(x,-1,3) |> getInfo(time=TRUE,t0=TRUE)
+$t0
+[1] -1
+
+$time
+[1] 3
+
+> try(parse_cblv(x[,1],0,3))
+Error : in 'parse_cblv': 'xy' must be a two-column matrix.
+> try(parse_cblv(x[1:2,],0,3))
+Error : invalid CBLV: last value of y is nonzero.
+> try(parse_cblv(x,0,2))
+Error : invalid CBLV: x[0] = 3 > 2 = time-t0
+> x <- matrix(c(3,-2,1,1,2,0),3,2)
+> try(parse_cblv(x,0,3))
+Error : invalid CBLV: negative tip-edge length in position 2
+> x <- matrix(c(3,2,1,-1,2,0),3,2)
+> try(parse_cblv(x,0,3))
+Error : invalid CBLV: negative internal branch-time in position 1
+> x <- matrix(c(3,1,0.1,1,2.5,0),3,2)
+> try(parse_cblv(x,0,3))
+Error : invalid CBLV: node 2 cannot attach.
+> 
+> ## FIXME: not ladderized, yet returns result
+> x <- matrix(c(2,1,3,1,2,0),3,2)
+> all(cblv(parse_cblv(x,0,3))==x)
+[1] FALSE
+> 

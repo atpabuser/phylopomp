@@ -35,9 +35,7 @@ ball_t::newick
   string_t o = "[&&PhyloPOMP type=extant";
   if (showdeme && deme() != undeme)
     o += " deme=" + std::to_string(deme());
-  o += "]"
-    + std::to_string(uniq) +
-    ":" + double2string(t);
+  o += "]:" + double2string(t);
   return o;
 }
 
@@ -57,7 +55,7 @@ node_t::newick
     o3 += "[&&PhyloPOMP ";
     if (holds(blue))
       o3 += "type=sample";
-    else if (holds_own())
+    else if (is_root())
       o3 += "type=root";
     else
       o3 += "type=node";
@@ -86,7 +84,6 @@ node_t::newick
     }
   }
   return o1 + o2 + o3
-    + std::to_string(uniq)
     + ":" + double2string(slate - tpar);
 }
 

@@ -4,6 +4,8 @@
 #ifndef _NODE_H_
 #define _NODE_H_
 
+#include <unordered_map>
+#include <vector>
 #include "ball.h"
 #include "pocket.h"
 #include "internal.h"
@@ -115,14 +117,11 @@ public:
   node_t* parent (void) const {
     return _green_ball->holder();
   };
-  bool holds_own (void) const {
+  bool is_root (void) const {
     return (_green_ball->holder() == this);
   };
-  bool is_root (void) const {
-    return holds_own();
-  };
   bool dead_root (void) const {
-    return holds_own() && size()==1;
+    return is_root() && size()==1;
   };
 
 public:
@@ -139,7 +138,7 @@ public:
         break;
       }
     }
-    if (holds_own()) n--;
+    if (is_root()) n--;
     return n;
   };
   //! lineage count, saturation, and event-type
@@ -149,6 +148,18 @@ public:
   //! -  1 = sample
   //! -  2 = non-sample node
   void lineage_incr (int *incr, int *sat, int *etype) const;
+
+  //! distance along the genealogy from given node back to the nearest
+  //! already-visited ancestor.
+  slate_t joining_branch_length (const std::unordered_map<name_t, bool>&) const;
+
+  //! Recursive in-order walk over the subtree rooted at node p.
+  //! - at leaf node, push added branch length into x
+  //! - at internal node, push height into y
+  void cblv (std::vector<slate_t>&, std::vector<slate_t>&,
+             std::unordered_map<name_t, bool>&,
+             const std::unordered_map<name_t,std::vector<node_t*>>&,
+             slate_t) const;
 
 public:
 

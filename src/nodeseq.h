@@ -6,6 +6,8 @@
 
 #include <list>
 #include <unordered_map>
+#include <vector>
+#include <algorithm>
 #include "node.h"
 #include "internal.h"
 
@@ -63,7 +65,7 @@ public:
       node_t *p = new node_t();
       o = (o >> *p);
       G.push_back(p);
-      node_names.insert({p->uniq,p});
+      node_names[p->uniq] = p;
     }
     for (node_t *q : G) {
       q->repair_owners(node_names,&ball_names);
@@ -75,16 +77,22 @@ public:
 
 private:
 
+  //! Repair the links green balls and their names.
   //! Needed in deserialization.
-  //! This function repairs the links green balls and their names.
-  void repair_owners (std::unordered_map<name_t,ball_t*>& names) {
-    std::unordered_map<name_t,ball_t*>::const_iterator n;
+  void repair_owners (const std::unordered_map<name_t,ball_t*>& names) {
     for (node_t *p : *this) {
-      n = names.find(p->uniq);
-      assert(n != names.end());
-      ball_t *b = n->second;
-      p->green_ball() = b;
+      p->green_ball() = names.at(p->uniq);
     }
+  };
+
+  //! map node names onto pointers
+  std::unordered_map<name_t, node_t*>
+  node_map (void) const {
+    std::unordered_map<name_t, node_t*> m;
+    m.reserve(size());
+    for (node_t* p : *this)
+      m[p->uniq] = p;
+    return m;
   };
 
 public:
@@ -95,8 +103,8 @@ public:
   static bool compare (node_t* p, node_t* q) {
     return (p->slate < q->slate) ||
       ((p->slate == q->slate) &&
-       ((p==q->green_ball()->holder()) ||
-        ((q!=p->green_ball()->holder()) && (p->uniq < q->uniq))));
+       ((p == q->parent()) ||
+        ((q != p->parent()) && (p->uniq < q->uniq))));
   };
 
   //! order nodes in order of increasing time
@@ -232,6 +240,65 @@ private:
       p->lineage() = u;
       p = p->parent();
     }
+  };
+
+public:
+
+  //! map nodes onto vector of children
+  std::unordered_map<name_t, std::vector<node_t*>>
+  children_map (void) const {
+    std::unordered_map<name_t, std::vector<node_t*>> children;
+    children.reserve(size());
+    // initialise every node with an empty vector
+    for (node_t* p : *this)
+      children[p->uniq];
+    for (node_t* p : *this) {
+      if (!p->is_root())
+        children[p->parent()->uniq].push_back(p);
+    }
+    return children;
+  };
+
+  //! collect root nodes and sort them in order of decreasing subtree height
+  std::vector<node_t*>
+  sorted_roots
+  (
+   const std::unordered_map<name_t, slate_t>& height
+   ) const {
+    std::vector<node_t*> roots;
+    for (node_t* p : *this)
+      if (p->is_root()) roots.push_back(p);
+    std::sort(roots.begin(), roots.end(),
+              [&height](node_t* a, node_t* b) {
+                return height.at(a->uniq) > height.at(b->uniq);
+              });
+    return roots;
+  };
+
+  //! ladderize the tree by sorting each vector in 'children' according
+  //! to decreasing subtree height. Return the root nodes, sorted in the
+  //! same way.
+  std::vector<node_t*>
+  ladderize
+  (
+   std::unordered_map<name_t,std::vector<node_t*>>& children
+   ) const {
+    std::unordered_map<name_t, slate_t> height;
+    height.reserve(size());
+    for (auto it = rbegin(); it != rend(); ++it) {
+      node_t* p = *it;
+      auto& ch = children.at(p->uniq);
+      if (ch.empty()) {
+        height[p->uniq] = p->slate;
+      } else {
+        std::sort(ch.begin(), ch.end(),
+                  [&height](node_t* a, node_t* b) {
+                    return height.at(a->uniq) > height.at(b->uniq);
+                  });
+        height[p->uniq] = height.at(ch[0]->uniq);
+      }
+    }
+    return sorted_roots(height);
   };
 
 public:

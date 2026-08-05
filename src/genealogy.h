@@ -6,6 +6,7 @@
 
 #include <utility>
 #include <stdexcept>
+#include <vector>
 
 #include "nodeseq.h"
 #include "internal.h"
@@ -192,7 +193,7 @@ public:
   size_t nroot (void) const {
     size_t n = 0;
     for (const node_t *p : *this) {
-      if (p->holds_own()) n++;
+      if (p->is_root()) n++;
     }
     return n;
   };
@@ -355,7 +356,7 @@ public:
   genealogy_t& operator+= (const genealogy_t& other);
 
   //! insert zero-length branches for samples where needed
-  void insert_zlb (void) {
+  genealogy_t& insert_zlb (void) {
     for (node_t *p : *this) {
       if (p->holds(green) && p->holds(blue)) {
         assert(!p->holds(black)); // genealogy should have already been pruned
@@ -368,6 +369,7 @@ public:
       }
     }
     sort();
+    return *this;
   };
 
 private:
@@ -380,7 +382,7 @@ private:
   void cap_roots (void) {
     node_nit j = begin();
     while (j != end()) {
-      if ((*j)->holds_own() && (*j)->slate > timezero()) {
+      if ((*j)->is_root() && (*j)->slate > timezero()) {
         node_t *q = make_node();
         q->slate = timezero();
         attach(q,*j);
@@ -398,7 +400,7 @@ private:
 public:
 
   //! Parse a Newick string and create the indicated genealogy.
-  genealogy_t& parse (const string_t& s);
+  genealogy_t& parse (const string_t&);
 
   void time_rescale (slate_t scale, slate_t origin = 0) {
     timezero() = scale*(timezero()-origin);
@@ -407,6 +409,19 @@ public:
     }
     time() = scale*(time()-origin);
   };
+
+  //! return the CBLV representation as an R matrix
+  friend SEXP cblv (genealogy_t&);
+
+  //! parse a CBLV representation in the vectors x and y.
+  genealogy_t& parse_cblv (const double *, const double *, int, double);
+
+private:
+
+  //! return the CBLV representation in the vectors x and y:
+  //! - x[i] = branch length added by the i-th sample leaf
+  //! - y[i] = height above t0 of the i-th internal branching event
+  std::pair<std::vector<slate_t>, std::vector<slate_t>> cblv (void) const;
 
 };
 
