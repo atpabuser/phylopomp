@@ -30,6 +30,7 @@ BUILD\.md$
 ^rchk\.out$
 ^\.gitignore$
 ^\.github
+^\.claude$
 ^\.travis\.yml$
 ^codecov\.yml$
 ^.*\.Rproj$
