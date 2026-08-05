@@ -1,5 +1,5 @@
 
-R version 4.6.1 (2026-06-24) -- "Happy Hop"
+R version 4.6.0 (2026-04-24) -- "Because it was There"
 Copyright (C) 2026 The R Foundation for Statistical Computing
 Platform: x86_64-pc-linux-gnu
 
@@ -19,22 +19,22 @@ Type 'q()' to quit R.
 
 > library(phylopomp)
 
-Attaching package: 'phylopomp'
+Attaching package: ‘phylopomp’
 
-The following object is masked from 'package:stats':
+The following object is masked from ‘package:stats’:
 
     simulate
 
 > try(simulate("billyjoe"))
-Error : unrecognized model: 'billyjoe'.
-Do 'simulate()' to view available models.
+Error : unrecognized model: ‘billyjoe’.
+Do ‘simulate()’ to view available models.
 > try(simulate(22))
-Error : in 'simulate.default': 'object' must be specified as either the name of a model or the result of a previous simulation.
-Do 'simulate()' to view available models.
+Error : in ‘simulate.default’: ‘object’ must be specified as either the name of a model or the result of a previous simulation.
+Do ‘simulate()’ to view available models.
 > simulate("SEIR",time=4) -> x
 > attr(x,"model") <- "billybob"
 > try(simulate(x,time=10))
-Error : unrecognized model 'billybob'.
+Error : unrecognized model ‘billybob’.
 > attr(x,"model") <- NULL
 > try(simulate(x,time=10))
 Error : no model attribute detected.
@@ -48,6 +48,8 @@ Available phylopomp models:
 - LBDP: Linear birth-death-sampling model
 - MERS: Two-host infection model with spillover and demography. Hosts are culled upon sampling.
 - Moran: The classical Moran model
+- MTBD2: General 2-type linear multitype birth-death-sampling process (BDMM, Stadler psi/r parameterization)
+- MTBD3: General 3-type linear multitype birth-death-sampling process (BDMM, Stadler psi/r parameterization)
 - S2I2R2: Two-host infection model with waning, immigration, and demography.
 - SEIR: Classical susceptible-exposed-infected-recovered model
 - SI2R: Two-deme model of superspreading

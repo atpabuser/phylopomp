@@ -102,44 +102,44 @@ double si2r_proc_t::event_rates (double *rate, int n) const {
 template<>
 void si2r_genealogy_t::rinit (void) {
   double f = params.pop/(params.S0+params.IL0+params.IH0+params.R0);
-  state.S = nearbyint(f*params.S0);
-  state.IL = nearbyint(f*params.IL0);
-  state.IH = nearbyint(f*params.IH0);
-  state.R = nearbyint(f*params.R0);
-  graft(L,state.IL);
-  graft(H,state.IH);
+state.S = nearbyint(f*params.S0);
+state.IL = nearbyint(f*params.IL0);
+state.IH = nearbyint(f*params.IH0);
+state.R = nearbyint(f*params.R0);
+graft(L,state.IL);
+graft(H,state.IH);
 }
 
 template<>
 void si2r_genealogy_t::jump (int event) {
   switch (event) {
   case 0:
-    state.S -= 1; state.IL += 1; birth(L,L);
-    break;
-  case 1:
-    state.S -= 1; state.IL += 1; birth(H,L);
-    break;
-  case 2:
-    state.IL -= 1; state.IH += 1; migrate(L,H);
-    break;
-  case 3:
-    state.IL += 1; state.IH -= 1; migrate(H,L);
-    break;
-  case 4:
-    state.IL -= 1; state.R += 1; death(L);
-    break;
-  case 5:
-    state.IH -= 1; state.R += 1; death(H);
-    break;
-  case 6:
-    state.R -= 1; state.S += 1;
-    break;
-  case 7:
-    state.IL -= 1; sample_death(L);
-    break;
-  case 8:
-    state.IH -= 1; sample_death(H);
-    break;
+      state.S -= 1; state.IL += 1; birth(L,L);
+      break;
+    case 1:
+      state.S -= 1; state.IL += 1; birth(H,L);
+      break;
+    case 2:
+      state.IL -= 1; state.IH += 1; migrate(L,H);
+      break;
+    case 3:
+      state.IL += 1; state.IH -= 1; migrate(H,L);
+      break;
+    case 4:
+      state.IL -= 1; state.R += 1; death(L);
+      break;
+    case 5:
+      state.IH -= 1; state.R += 1; death(H);
+      break;
+    case 6:
+      state.R -= 1; state.S += 1;
+      break;
+    case 7:
+      state.IL -= 1; sample_death(L);
+      break;
+    case 8:
+      state.IH -= 1; sample_death(H);
+      break;
   default:                      // #nocov
     assert(0);                  // #nocov
     break;                      // #nocov

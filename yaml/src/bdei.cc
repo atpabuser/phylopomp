@@ -78,27 +78,27 @@ double bdei_proc_t::event_rates (double *rate, int n) const {
 template<>
 void bdei_genealogy_t::rinit (void) {
   double m = params.pop/(params.E0 + params.I0);
-  state.E = nearbyint(m*params.E0);
-  state.I = nearbyint(m*params.I0);
-  graft(exposed, state.E);
-  graft(infectious, state.I);
+state.E = nearbyint(m*params.E0);
+state.I = nearbyint(m*params.I0);
+graft(exposed, state.E);
+graft(infectious, state.I);
 }
 
 template<>
 void bdei_genealogy_t::jump (int event) {
   switch (event) {
   case 0:
-    state.E -= 1; state.I += 1; migrate(exposed, infectious);
-    break;
-  case 1:
-    state.E += 1; birth(infectious, exposed);
-    break;
-  case 2:
-    state.I -= 1; death(infectious);
-    break;
-  case 3:
-    state.I -= 1; sample_death(infectious);
-    break;
+      state.E -= 1; state.I += 1; migrate(exposed, infectious);
+      break;
+    case 1:
+      state.E += 1; birth(infectious, exposed);
+      break;
+    case 2:
+      state.I -= 1; death(infectious);
+      break;
+    case 3:
+      state.I -= 1; sample_death(infectious);
+      break;
   default:                      // #nocov
     assert(0);                  // #nocov
     break;                      // #nocov

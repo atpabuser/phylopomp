@@ -88,39 +88,39 @@ double bdss_proc_t::event_rates (double *rate, int n) const {
 template<>
 void bdss_genealogy_t::rinit (void) {
   double m = params.pop/(params.N0 + params.S0);
-  state.N = nearbyint(m*params.N0);
-  state.S = nearbyint(m*params.S0);
-  graft(normal, state.N);
-  graft(superspreader, state.S);
+state.N = nearbyint(m*params.N0);
+state.S = nearbyint(m*params.S0);
+graft(normal, state.N);
+graft(superspreader, state.S);
 }
 
 template<>
 void bdss_genealogy_t::jump (int event) {
   switch (event) {
   case 0:
-    state.N += 1; birth(normal, normal);
-    break;
-  case 1:
-    state.S += 1; birth(normal, superspreader);
-    break;
-  case 2:
-    state.N += 1; birth(superspreader, normal);
-    break;
-  case 3:
-    state.S += 1; birth(superspreader, superspreader);
-    break;
-  case 4:
-    state.N -= 1; death(normal);
-    break;
-  case 5:
-    state.S -= 1; death(superspreader);
-    break;
-  case 6:
-    state.N -= 1; sample_death(normal);
-    break;
-  case 7:
-    state.S -= 1; sample_death(superspreader);
-    break;
+      state.N += 1; birth(normal, normal);
+      break;
+    case 1:
+      state.S += 1; birth(normal, superspreader);
+      break;
+    case 2:
+      state.N += 1; birth(superspreader, normal);
+      break;
+    case 3:
+      state.S += 1; birth(superspreader, superspreader);
+      break;
+    case 4:
+      state.N -= 1; death(normal);
+      break;
+    case 5:
+      state.S -= 1; death(superspreader);
+      break;
+    case 6:
+      state.N -= 1; sample_death(normal);
+      break;
+    case 7:
+      state.S -= 1; sample_death(superspreader);
+      break;
   default:                      // #nocov
     assert(0);                  // #nocov
     break;                      // #nocov

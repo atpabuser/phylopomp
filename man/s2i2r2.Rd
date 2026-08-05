@@ -115,6 +115,8 @@ More example genealogy processes:
 \code{\link{lbdp}},
 \code{\link{mers}},
 \code{\link{moran}},
+\code{\link{mtbd2}},
+\code{\link{mtbd3}},
 \code{\link{seir}},
 \code{\link{si2r}},
 \code{\link{siir}},

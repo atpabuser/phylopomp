@@ -96,35 +96,35 @@ double seir_proc_t::event_rates (double *rate, int n) const {
 template<>
 void seir_genealogy_t::rinit (void) {
   double f = params.pop/(params.S0+params.E0+params.I0+params.R0);
-  state.S = nearbyint(f*params.S0);
-  state.E = nearbyint(f*params.E0);
-  state.I = nearbyint(f*params.I0);
-  state.R = nearbyint(f*params.R0);
-  graft(Exposed,state.E);
-  graft(Infectious,state.I);
+state.S = nearbyint(f*params.S0);
+state.E = nearbyint(f*params.E0);
+state.I = nearbyint(f*params.I0);
+state.R = nearbyint(f*params.R0);
+graft(Exposed,state.E);
+graft(Infectious,state.I);
 }
 
 template<>
 void seir_genealogy_t::jump (int event) {
   switch (event) {
   case 0:
-    state.S -= 1; state.E += 1; birth(Infectious,Exposed);
-    break;
-  case 1:
-    state.E -= 1; state.I += 1; migrate(Exposed,Infectious);
-    break;
-  case 2:
-    state.I -= 1; state.R += 1; death(Infectious);
-    break;
-  case 3:
-    state.I -= 1; sample_death(Infectious);
-    break;
-  case 4:
-    sample(Infectious);
-    break;
-  case 5:
-    state.R -= 1; state.S += 1;
-    break;
+      state.S -= 1; state.E += 1; birth(Infectious,Exposed);
+      break;
+    case 1:
+      state.E -= 1; state.I += 1; migrate(Exposed,Infectious);
+      break;
+    case 2:
+      state.I -= 1; state.R += 1; death(Infectious);
+      break;
+    case 3:
+      state.I -= 1; sample_death(Infectious);
+      break;
+    case 4:
+      sample(Infectious);
+      break;
+    case 5:
+      state.R -= 1; state.S += 1;
+      break;
   default:                      // #nocov
     assert(0);                  // #nocov
     break;                      // #nocov

@@ -105,44 +105,44 @@ double siir_proc_t::event_rates (double *rate, int n) const {
 template<>
 void siir_genealogy_t::rinit (void) {
   double f = params.pop/(params.S_0+params.I1_0+params.I2_0+params.R_0);
-  state.S = nearbyint(f*params.S_0);
-  state.I1 = nearbyint(f*params.I1_0);
-  state.I2 = nearbyint(f*params.I2_0);
-  state.R = nearbyint(f*params.R_0);
-  graft(strain1,state.I1);
-  graft(strain2,state.I2);
+state.S = nearbyint(f*params.S_0);
+state.I1 = nearbyint(f*params.I1_0);
+state.I2 = nearbyint(f*params.I2_0);
+state.R = nearbyint(f*params.R_0);
+graft(strain1,state.I1);
+graft(strain2,state.I2);
 }
 
 template<>
 void siir_genealogy_t::jump (int event) {
   switch (event) {
   case 0:
-    state.S -= 1; state.I1 += 1; birth(strain1,strain1);
-    break;
-  case 1:
-    state.S -= 1; state.I2 += 1; birth(strain2,strain2);
-    break;
-  case 2:
-    state.I1 -= 1; state.R += 1; death(strain1);
-    break;
-  case 3:
-    state.I2 -= 1; state.R += 1; death(strain2);
-    break;
-  case 4:
-    sample(strain1);
-    break;
-  case 5:
-    sample(strain2);
-    break;
-  case 6:
-    state.I1 -= 1; state.I2 += 1; migrate(strain1,strain2);
-    break;
-  case 7:
-    state.I1 += 1; state.I2 -= 1; migrate(strain2,strain1);
-    break;
-  case 8:
-    state.S += 1; state.R -= 1;
-    break;
+      state.S -= 1; state.I1 += 1; birth(strain1,strain1);
+      break;
+    case 1:
+      state.S -= 1; state.I2 += 1; birth(strain2,strain2);
+      break;
+    case 2:
+      state.I1 -= 1; state.R += 1; death(strain1);
+      break;
+    case 3:
+      state.I2 -= 1; state.R += 1; death(strain2);
+      break;
+    case 4:
+      sample(strain1);
+      break;
+    case 5:
+      sample(strain2);
+      break;
+    case 6:
+      state.I1 -= 1; state.I2 += 1; migrate(strain1,strain2);
+      break;
+    case 7:
+      state.I1 += 1; state.I2 -= 1; migrate(strain2,strain1);
+      break;
+    case 8:
+      state.S += 1; state.R -= 1;
+      break;
   default:                      // #nocov
     assert(0);                  // #nocov
     break;                      // #nocov

@@ -80,6 +80,8 @@ More example genealogy processes:
 \code{\link{bdss}},
 \code{\link{mers}},
 \code{\link{moran}},
+\code{\link{mtbd2}},
+\code{\link{mtbd3}},
 \code{\link{s2i2r2}},
 \code{\link{seir}},
 \code{\link{si2r}},

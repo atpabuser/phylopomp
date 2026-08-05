@@ -117,13 +117,13 @@ double mers_proc_t::event_rates (double *rate, int n) const {
 template<>
 void mers_genealogy_t::rinit (void) {
   double fc = params.Nc/(params.Sc0+params.Ic0);
-  double fh = params.Nh/(params.Sh0+params.Ih0);
-  state.Sc = nearbyint(fc*params.Sc0);
-  state.Ic = nearbyint(fc*params.Ic0);
-  state.Sh = nearbyint(fh*params.Sh0);
-  state.Ih = nearbyint(fh*params.Ih0);
-  graft(camel,state.Ic);
-  graft(human,state.Ih);
+double fh = params.Nh/(params.Sh0+params.Ih0);
+state.Sc = nearbyint(fc*params.Sc0);
+state.Ic = nearbyint(fc*params.Ic0);
+state.Sh = nearbyint(fh*params.Sh0);
+state.Ih = nearbyint(fh*params.Ih0);
+graft(camel,state.Ic);
+graft(human,state.Ih);
 }
 
 template<>
@@ -160,10 +160,10 @@ void mers_genealogy_t::jump (int event) {
     state.Sh += 1;
     break;
   case 10:
-    state.Sc -= 1;
+    if (state.Sc > 0) state.Sc -= 1;
     break;
   case 11:
-    state.Sh -= 1;
+    if (state.Sh > 0) state.Sh -= 1;
     break;
   default:                      // #nocov
     assert(0);                  // #nocov

@@ -69,24 +69,24 @@ double lbdp_proc_t::event_rates (double *rate, int n) const {
 template<>
 void lbdp_genealogy_t::rinit (void) {
   state.n = params.n0;
-  graft(deme,params.n0);
+graft(deme,params.n0);
 }
 
 template<>
 void lbdp_genealogy_t::jump (int event) {
   switch (event) {
   case 0:
-    state.n += 1; birth();
-    break;
-  case 1:
-    state.n -= 1; death();
-    break;
-  case 2:
-    state.n -= 1; sample_death();
-    break;
-  case 3:
-    sample();
-    break;
+      state.n += 1; birth();
+      break;
+    case 1:
+      state.n -= 1; death();
+      break;
+    case 2:
+      state.n -= 1; sample_death();
+      break;
+    case 3:
+      sample();
+      break;
   default:                      // #nocov
     assert(0);                  // #nocov
     break;                      // #nocov

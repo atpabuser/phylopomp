@@ -82,27 +82,27 @@ double sir_proc_t::event_rates (double *rate, int n) const {
 template<>
 void sir_genealogy_t::rinit (void) {
   double f = params.pop/(params.S0+params.I0+params.R0);
-  state.S = nearbyint(f*params.S0);
-  state.I = nearbyint(f*params.I0);
-  state.R = nearbyint(f*params.R0);
-  graft(Infected,state.I);
+state.S = nearbyint(f*params.S0);
+state.I = nearbyint(f*params.I0);
+state.R = nearbyint(f*params.R0);
+graft(Infected,state.I);
 }
 
 template<>
 void sir_genealogy_t::jump (int event) {
   switch (event) {
   case 0:
-    state.S -= 1; state.I += 1; birth();
-    break;
-  case 1:
-    state.I -= 1; state.R += 1; death();
-    break;
-  case 2:
-    sample();
-    break;
-  case 3:
-    state.R -= 1; state.S += 1;
-    break;
+      state.S -= 1; state.I += 1; birth();
+      break;
+    case 1:
+      state.I -= 1; state.R += 1; death();
+      break;
+    case 2:
+      sample();
+      break;
+    case 3:
+      state.R -= 1; state.S += 1;
+      break;
   default:                      // #nocov
     assert(0);                  // #nocov
     break;                      // #nocov

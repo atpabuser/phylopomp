@@ -21,6 +21,8 @@ yaml <- function (object) {
     modelLBDP = .Call(P_yamlLBDP,object),
     modelMERS = .Call(P_yamlMERS,object),
     modelMoran = .Call(P_yamlMoran,object),
+    modelMTBD2 = .Call(P_yamlMTBD2,object),
+    modelMTBD3 = .Call(P_yamlMTBD3,object),
     modelS2I2R2 = .Call(P_yamlS2I2R2,object),
     modelSEIR = .Call(P_yamlSEIR,object),
     modelSI2R = .Call(P_yamlSI2R,object),
