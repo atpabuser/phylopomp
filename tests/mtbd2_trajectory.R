@@ -1,0 +1,77 @@
+options(digits=3)
+suppressPackageStartupMessages({
+  library(pomp)
+  library(phylopomp)
+})
+set.seed(20260805)
+
+## Build several draws with distinct trees AND distinct (jittered)
+## parameters, standing in for thinned tree/parameter posterior samples.
+theta0 <- list(
+  lambda_1_1=1.0, lambda_1_2=0.3, lambda_2_1=0.2, lambda_2_2=0.9,
+  m_1_2=0, m_2_1=0, mu_1=0.3, mu_2=0.3, psi_1=0.3, psi_2=0.3,
+  r_1=1, r_2=1, I1_0=3, I2_0=2, pop=5
+)
+jitter <- function (th, sdfrac=0.15) {
+  for (nm in c("lambda_1_1","lambda_1_2","lambda_2_1","lambda_2_2","mu_1","mu_2","psi_1","psi_2"))
+    th[[nm]] <- max(0.01, th[[nm]] * exp(rnorm(1,0,sdfrac)))
+  th
+}
+K <- 6
+draws <- vector("list", K)
+for (k in seq_len(K)) {
+  pk <- jitter(theta0)
+  gk <- do.call(
+    runMTBD2,
+    c(list(time=3), pk[c("lambda_1_1","lambda_1_2","lambda_2_1","lambda_2_2",
+      "m_1_2","m_2_1","mu_1","mu_2","psi_1","psi_2","r_1","r_2","I1_0","I2_0")])
+  )
+  draws[[k]] <- list(x=gk, params=pk)
+}
+
+tgrid <- seq(0, 3, by=0.5)
+
+## Pooled (parameter + tree uncertainty) posterior.
+out_pooled <- mtbd2_trajectory_posterior(draws, Np=1500, times=tgrid)
+stopifnot(
+  inherits(out_pooled, "tbl_df"),
+  all(c("time","deme","ndraws","q2.5","q50","q97.5") %in% names(out_pooled)),
+  nrow(out_pooled) == length(tgrid)*2,
+  all(out_pooled$ndraws == K),
+  all(out_pooled$q2.5 <= out_pooled$q50),
+  all(out_pooled$q50 <= out_pooled$q97.5),
+  all(is.finite(as.matrix(out_pooled[,c("q2.5","q50","q97.5")])))
+)
+
+## At t=0 every particle in every draw starts at exactly (I1_0, I2_0):
+## the band must have zero width there, regardless of parameter jitter.
+t0 <- out_pooled[out_pooled$time==0,]
+stopifnot(
+  all(t0$q2.5 == t0$q50),
+  all(t0$q50 == t0$q97.5),
+  t0$q50[t0$deme==1] == theta0$I1_0,
+  t0$q50[t0$deme==2] == theta0$I2_0
+)
+
+## Single-draw posterior (within-tree Monte Carlo noise only) must be
+## narrower at the terminal time than the pooled (parameter + tree
+## uncertainty) posterior -- the qualitative signature that pooling is
+## genuinely integrating the extra uncertainty source, not just
+## concatenating particle noise.
+out_single <- mtbd2_trajectory_posterior(draws[1], Np=1500, times=tgrid)
+stopifnot(all(out_single$ndraws == 1))
+p3 <- out_pooled[out_pooled$time==3 & out_pooled$deme==1,]
+s3 <- out_single[out_single$time==3 & out_single$deme==1,]
+stopifnot(
+  (p3$q97.5 - p3$q2.5) > (s3$q97.5 - s3$q2.5)
+)
+
+## times=NULL mode (no interpolation, pooled on the union of each draw's
+## own observation times) must also run cleanly and return a sane table.
+out_native <- mtbd2_trajectory_posterior(draws[1:2], Np=500)
+stopifnot(
+  nrow(out_native) > 0,
+  all(is.finite(as.matrix(out_native[,c("q2.5","q50","q97.5")]))),
+  all(out_native$q2.5 <= out_native$q50),
+  all(out_native$q50 <= out_native$q97.5)
+)
