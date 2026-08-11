@@ -11,6 +11,8 @@ static const int type2 = 2;
 typedef struct {
   int I1;
   int I2;
+  int n12;
+  int n21;
 } mtbd2_state_t;
 
 //! MTBD2 process parameters.
@@ -54,7 +56,9 @@ std::string mtbd2_proc_t::yaml (std::string tab) const {
     + YAML_PARAM(I2_0);
   std::string s = tab + "state:\n"
     + YAML_STATE(I1)
-    + YAML_STATE(I2);
+    + YAML_STATE(I2)
+    + YAML_STATE(n12)
+    + YAML_STATE(n21);
   return p+s;
 }
 
@@ -108,6 +112,8 @@ template<>
 void mtbd2_genealogy_t::rinit (void) {
   state.I1 = params.I1_0;
 state.I2 = params.I2_0;
+state.n12 = 0;
+state.n21 = 0;
 graft(type1,params.I1_0);
 graft(type2,params.I2_0);
 }
@@ -119,10 +125,10 @@ void mtbd2_genealogy_t::jump (int event) {
       state.I1 += 1; birth(type1,type1);
       break;
     case 1:
-      state.I2 += 1; birth(type1,type2);
+      state.I2 += 1; state.n12 += 1; birth(type1,type2);
       break;
     case 2:
-      state.I1 += 1; birth(type2,type1);
+      state.I1 += 1; state.n21 += 1; birth(type2,type1);
       break;
     case 3:
       state.I2 += 1; birth(type2,type2);
