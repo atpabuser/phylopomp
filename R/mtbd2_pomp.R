@@ -12,6 +12,8 @@
 ##' \code{obs_tiptype=TRUE} and \code{obs_tiptype=FALSE} are likelihoods of \emph{different} data (the tip-typed vs. the type-unobscured tree) and are not interchangeable; choose according to whether the tip type was actually recorded in the underlying dataset.
 ##'
 ##' \code{obs_tiptype=TRUE} constrains the naive per-branch proposal kernel used throughout \pkg{phylopomp}'s coloring simulation (uniform choice among untracked individuals in the source deme) at every one of possibly many sample tips and branch points. On genealogies with many samples this can degenerate at low particle counts \code{Np} (the naive kernel rarely proposes exactly the sequence of colorings compatible with all observed tip types at once, so most particles are discarded and the effective sample size collapses, occasionally yielding an unusably low or \code{-Inf} log-likelihood estimate from a single \code{pfilter} call). Increasing \code{Np} resolves this: a run with tens of samples that fails at \code{Np=4000} typically stabilizes by \code{Np=20000} or more. Always check \code{\link[pomp]{eff_sample_size}} before trusting a single filter run in this mode.
+##'
+##' Each particle also carries a running count of realized cross-type birth (\eqn{1\to2} and \eqn{2\to1}) events, \code{n12} and \code{n21}, alongside \code{I1}/\code{I2} in every saved state (see \code{\link[pomp]{saved_states}}). These are the natural generalization of Vaughan & Stadler (2025)'s host-to-host spillover counts (e.g. camel-to-human transmissions, whether or not ancestral to the sampled tree) to an arbitrary two-type MTBD application; they cost nothing (they feed back into no rate, proposal, or likelihood computation) and let a single \code{\link[pomp]{pfilter}} call yield a spillover-count posterior directly, in place of the separate stochastic-mapping-plus-trajectory-filter pipeline their approach requires.
 ##' @importFrom pomp pomp onestep
 ##' @export
 mtbd2_pomp <- function (
@@ -55,12 +57,12 @@ mtbd2_pomp <- function (
       obstype=as.numeric(obs_tiptype)
     ),
     userdata=gi,
-    nstatevars=6L + gi$nsample,
+    nstatevars=8L + gi$nsample,
     rinit="mtbd2_rinit",
     rprocess=onestep("mtbd2_gill"),
     dmeasure="mtbd2_dmeas",
     statenames=c(
-      "I1","I2","ll","node","ell1","ell2","color"
+      "I1","I2","ll","node","ell1","ell2","n12","n21","color"
     ),
     paramnames=c(
       "lambda_11","lambda_12","lambda_21","lambda_22",

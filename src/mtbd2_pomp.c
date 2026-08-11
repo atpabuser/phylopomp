@@ -71,7 +71,17 @@ static void mtbd2_change_color (double *color, int nsample,
 #define node      (__x[__stateindex[3]])
 #define ell1      (__x[__stateindex[4]])
 #define ell2      (__x[__stateindex[5]])
-#define COLOR     (__x[__stateindex[6]])
+// N12/N21: per-particle running counts of realized 1->2 / 2->1 cross-type
+// birth events (spillovers), both regular and singular (branch-point).
+// Auxiliary bookkeeping only -- they do not feed back into any rate, pi, or
+// ll computation, so they cannot affect the likelihood; they exist purely
+// so saved_states()/mtbd2_trajectory_posterior() can report a spillover-
+// count posterior (Vaughan & Stadler 2025's headline result) as a byproduct
+// of the same pfilter() call, rather than requiring a separate post-hoc
+// event-counting pass.
+#define N12       (__x[__stateindex[6]])
+#define N21       (__x[__stateindex[7]])
+#define COLOR     (__x[__stateindex[8]])
 
 #define MTBD2_EVENT_RATES                               \
   mtbd2_event_rates(__x,__p,t,                           \
@@ -124,35 +134,60 @@ static double mtbd2_event_rates
   event_rate += (*rate = alpha*(1-disc)); rate++;
   *logpi = 0; logpi++;
   // 2,3: 1->2 birth (cross-type; source deme is 1)
+  // Support-safe (uniform) proposal. mtbd2_filter.tex's "Formal
+  // derivation-matching audit" confirms the case-2/case-3 terms in
+  // mtbd2_gill (log(1-ell2/I2) and log(1-ell1/I1)-log(I2)) already equal
+  // log(Phi) exactly (the -logpi[event] subtracted before the switch
+  // supplies the -log(pi) half of the Phi/pi ratio) -- that identity holds
+  // for *any* valid positive, ell1-summing-to-1 proposal, so pi need not
+  // equal Phi itself and can be changed independently of those terms. The
+  // audited "naive kernel" pi = (I1-ell1)/I1 (a specific individual drawn
+  // uniformly from the SOURCE deme) could hit exactly zero whenever deme 1
+  // was fully tracked (I1==ell1), even though Phi for this branch is a
+  // deme-2-side quantity (per Corollary "Derivation of the migration
+  // weight", reused here for the untracked-parent mixed-birth branch) that
+  // stays positive there -- the audit checked algebraic self-consistency,
+  // not this boundary/support case (same failure mode identified and fixed
+  // in bdei_pomp.c/bdss_pomp.c per bdei_filter_v2.pdf/bdss_filter_v2.pdf
+  // Sec.9 "Support-safe choices", both dated after this audit).
   alpha = lambda_12*I1;
-  pi = (I1 > 0) ? 1-ell1/I1 : 1;
+  pi = 1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  pi = 1-pi;
+  pi = ell1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell1); logpi++;
-  // 4,5: 2->1 birth (cross-type; source deme is 2)
+  // 4,5: 2->1 birth (cross-type; source deme is 2) -- mirror of 2,3.
   alpha = lambda_21*I2;
-  pi = (I2 > 0) ? 1-ell2/I2 : 1;
+  pi = 1/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  pi = 1-pi;
+  pi = ell2/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell2); logpi++;
-  // 6,7: migration 1->2 (never singular; source deme is 1)
+  // 6,7: migration 1->2 (source deme is 1)
+  // Same support-safety fix. mtbd2_filter.tex Sec."Migration: Always
+  // Regular", Corollary "Derivation of the migration weight" (and,
+  // independently, mtbd_companion.pdf Sec.4.4/Definition 4.2 for the
+  // generic model) confirm the true Phi for migrate12 is a deme-2
+  // (destination, post-event) quantity -- (n2-ell2)/n2 regular, 1/n2
+  // singular -- not a function of deme 1 at all; the case-6/case-7 terms in
+  // mtbd2_gill already encode it, verified by the same formal audit. Only
+  // the proposal (which *did* use deme 1's occupancy, per the audited
+  // naive kernel) needed the support-safety fix, same as events 2-5 above.
   alpha = m12*I1;
-  pi = (I1 > 0) ? 1-ell1/I1 : 1;
+  pi = 1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  pi = 1-pi;
+  pi = ell1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell1); logpi++;
-  // 8,9: migration 2->1 (source deme is 2)
+  // 8,9: migration 2->1 (source deme is 2) -- mirror of 6,7.
   alpha = m21*I2;
-  pi = (I2 > 0) ? 1-ell2/I2 : 1;
+  pi = 1/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  pi = 1-pi;
+  pi = ell2/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell2); logpi++;
   // 10: death in deme 1
@@ -196,6 +231,8 @@ void mtbd2_rinit
   I2 = nearbyint(I20*adj);
   ell1 = 0;
   ell2 = 0;
+  N12 = 0;
+  N21 = 0;
   ll = 0;
   node = 0;
 }
@@ -352,7 +389,7 @@ void mtbd2_gill
           color[lineage[c2]] = Type1;
         } else {
           // 1->2 birth: one type1, one type2
-          I2 += 1; ell2 += 1;
+          I2 += 1; ell2 += 1; N12 += 1;
           ll += log(lam/I2);
           if (I1*I2 <= 0) ll += R_NegInf;
           if (unif_rand() < 0.5) {
@@ -377,7 +414,7 @@ void mtbd2_gill
           color[lineage[c2]] = Type2;
         } else {
           // 2->1 birth: one type2, one type1
-          I1 += 1; ell1 += 1;
+          I1 += 1; ell1 += 1; N21 += 1;
           ll += log(lam/I1);
           if (I1*I2 <= 0) ll += R_NegInf;
           if (unif_rand() < 0.5) {
@@ -421,26 +458,26 @@ void mtbd2_gill
         assert(!ISNAN(ll));
         break;
       case 2:                   // 1->2 birth, source untracked
-        I2 += 1;
+        I2 += 1; N12 += 1;
         ll += log(1-ell2/I2);
         assert(!ISNAN(ll));
         break;
       case 3:                   // 1->2 birth, source tracked -> recolor
         mtbd2_change_color(color,nsample,mtbd2_random_choice(ell1),Type1,Type2);
         ell1 -= 1; ell2 += 1;
-        I2 += 1;
+        I2 += 1; N12 += 1;
         ll += log(1-ell1/I1)-log(I2);
         assert(!ISNAN(ll));
         break;
       case 4:                   // 2->1 birth, source untracked
-        I1 += 1;
+        I1 += 1; N21 += 1;
         ll += log(1-ell1/I1);
         assert(!ISNAN(ll));
         break;
       case 5:                   // 2->1 birth, source tracked -> recolor
         mtbd2_change_color(color,nsample,mtbd2_random_choice(ell2),Type2,Type1);
         ell2 -= 1; ell1 += 1;
-        I1 += 1;
+        I1 += 1; N21 += 1;
         ll += log(1-ell2/I2)-log(I1);
         assert(!ISNAN(ll));
         break;
