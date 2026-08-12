@@ -160,10 +160,10 @@ void mers_genealogy_t::jump (int event) {
     state.Sh += 1;
     break;
   case 10:
-    state.Sc -= 1;
+    if (state.Sc > 0) state.Sc -= 1;
     break;
   case 11:
-    state.Sh -= 1;
+    if (state.Sh > 0) state.Sh -= 1;
     break;
   default:                      // #nocov
     assert(0);                  // #nocov
