@@ -87,19 +87,33 @@ mtbd2_vs2025_params <- function (
 ##' @param n integer; number of draws.
 ##' @param d_1,d_2 numeric; duration in years between the first and last
 ##'   sample of each type in the dataset at hand (fixed data-derived
-##'   constants, not estimated -- see Table 2's footnote). Used as the lower
-##'   bound of the origin-time prior \eqn{T\sim\mathrm{LogUniform}(d_i,20)}
-##'   (they take the max over types in their single-origin application; do
-##'   the same here by passing \code{max(d_1,d_2)} if a single scalar is
-##'   wanted).
+##'   constants, not estimated). Used as the lower bound of the bounded
+##'   origin-time sampler described below (they take the max over types in
+##'   their single-origin application; do the same here by passing
+##'   \code{max(d_1,d_2)} if a single scalar is wanted).
 ##' @details
 ##' \code{mtbd2_vs2025_priors} draws \code{n} independent parameter sets from
 ##' the priors of Table 2: \eqn{R_{ii}\sim\mathrm{LogNormal}(0,0.5)},
 ##' \eqn{R_{ij}\sim\mathrm{Exp}(1)} for \eqn{i\neq j},
 ##' \eqn{\delta_i\sim\mathrm{LogNormal}(3,0.5)} (per year),
-##' \eqn{s_i\sim\mathrm{Unif}(0,0.1)}, \eqn{r_i=1} fixed, and (if \code{d_1},
-##' \code{d_2} are supplied) an origin time
-##' \eqn{T\sim\mathrm{LogUniform}(\max(d_1,d_2),20)} years. Each row is also
+##' \eqn{s_i\sim\mathrm{Unif}(0,0.1)}, \eqn{r_i=1} fixed -- all four confirmed
+##' directly against their published MERS-CoV BEAST 2 XML
+##' (\code{mers_relaxed_part2.xml} in
+##' \url{https://github.com/tgvaughan/MultiTypeTrajectoryAnalyses}), which
+##' matches this sampler exactly for these parameters.
+##'
+##' The origin time \eqn{T} is the one exception: that same XML encodes its
+##' prior as BEAST 2's \code{OneOnX}, an \emph{unbounded} Jeffreys-style
+##' density \eqn{p(T)\propto 1/T} on \eqn{(0,\infty)} -- not the bounded
+##' \eqn{\mathrm{LogUniform}(d_i,20)} this function previously claimed to
+##' reproduce. \code{OneOnX} is improper (infinite total mass) and so cannot
+##' itself be sampled from; if \code{d_1}/\code{d_2} are supplied, the
+##' \code{T} column here instead draws from
+##' \eqn{T\sim\mathrm{LogUniform}(\max(d_1,d_2),20)}, which has the same
+##' log-uniform \emph{shape} as \code{OneOnX} but is a proper, boundedly
+##' truncated stand-in for it -- adequate for prior-predictive checks or as
+##' \code{\link{mtbd2_mif2}}/\code{\link{mtbd2_pmcmc}} starting values, but
+##' not a literal reproduction of their encoded prior. Each row is also
 ##' passed through \code{mtbd2_vs2025_params} so the native
 ##' \eqn{(\lambda,\mu,\psi)} columns are included alongside the
 ##' \eqn{(R,\delta,s)} columns actually drawn.
