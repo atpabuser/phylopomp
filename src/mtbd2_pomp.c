@@ -65,6 +65,28 @@ static void mtbd2_change_color (double *color, int nsample,
 #define I10       (__p[__parindex[13]])
 #define I20       (__p[__parindex[14]])
 #define OBSTYPE   (__p[__parindex[15]])
+// FIRST1/LAST1, FIRST2/LAST2: sampling-active window per deme (Vaughan &
+// Stadler 2025's time-varying s_i(t): delta_i=mu_i+psi_i stays constant,
+// only its split into mu_i/psi_i switches at these boundaries). Default
+// -Inf/Inf (set by mtbd2_pomp.R when sample_window_i is NULL) makes the
+// window comparison below unconditionally true, exactly reproducing the
+// previous (window-free) behavior.
+#define FIRST1    (__p[__parindex[16]])
+#define LAST1     (__p[__parindex[17]])
+#define FIRST2    (__p[__parindex[18]])
+#define LAST2     (__p[__parindex[19]])
+// Seasonal forcing on lambda_1_1 (camel->camel transmission) only, tied to
+// e.g. camel calving season: lambda_1_1(t) = lambda_11*(1+amp*cos(2*pi*
+// (t-phase)/period)). amp=0 (mtbd2_pomp.R's default) makes this identically
+// lambda_11 regardless of period/phase, exactly reproducing prior behavior.
+// mtbd2_pomp.R enforces 0<=amp<1 so lambda_1_1(t) stays nonnegative. period
+// should be fixed, not estimated, when fitting (see mtbd2_pomp.R's docs) --
+// nothing here enforces that; it is ordinary modeling practice, not a code
+// constraint.
+#define L11AMP    (__p[__parindex[20]])
+#define L11PERIOD (__p[__parindex[21]])
+#define L11PHASE  (__p[__parindex[22]])
+#define LAMBDA11_T(t) (lambda_11*(1+L11AMP*cos(2*M_PI*((t)-L11PHASE)/L11PERIOD)))
 #define I1        (__x[__stateindex[0]])
 #define I2        (__x[__stateindex[1]])
 #define ll        (__x[__stateindex[2]])
@@ -81,7 +103,17 @@ static void mtbd2_change_color (double *color, int nsample,
 // event-counting pass.
 #define N12       (__x[__stateindex[6]])
 #define N21       (__x[__stateindex[7]])
-#define COLOR     (__x[__stateindex[8]])
+// N12_ANC/N21_ANC: the subset of N12/N21 events that involve a currently
+// TRACKED lineage -- the regular-loop recolor branches (case 3/case 5) and
+// the singular mixed-fork branch point -- as opposed to N12/N21's total
+// over the whole (mostly untracked) population. This is Vaughan & Stadler
+// (2025)'s distinction between spillover events "ancestral to the sampled
+// dataset" (this pair) and events "in the broader population" (N12/N21):
+// their MERS-CoV headline results report both (95% HPD [45,57] ancestral
+// vs. [143,421] wider-population, camel-to-human).
+#define N12A      (__x[__stateindex[8]])
+#define N21A      (__x[__stateindex[9]])
+#define COLOR     (__x[__stateindex[10]])
 
 #define MTBD2_EVENT_RATES                               \
   mtbd2_event_rates(__x,__p,t,                           \
@@ -121,8 +153,20 @@ static double mtbd2_event_rates
   *penalty = 0;
   assert(I1 >= ell1 && ell1 >= 0);
   assert(I2 >= ell2 && ell2 >= 0);
+  // Sampling-active window: delta_i=mu_i+psi_i is held constant, only its
+  // split shifts at FIRST_i/LAST_i (see the FIRST1/LAST1 macro comment
+  // above). Evaluated fresh at this call's t, so it tracks correctly across
+  // the many event_rates() calls made per onestep() interval as t advances
+  // through mtbd2_gill's inner Gillespie loop -- no covariate_table (with
+  // its coarser, per-interval-boundary-only resolution) is needed.
+  double active1 = (t >= FIRST1 && t <= LAST1) ? 1.0 : 0.0;
+  double active2 = (t >= FIRST2 && t <= LAST2) ? 1.0 : 0.0;
+  double psi1_eff = psi1*active1, mu1_eff = mu1 + psi1*(1-active1);
+  double psi2_eff = psi2*active2, mu2_eff = mu2 + psi2*(1-active2);
   // 0: 1->1 birth (within-type, disc = missing branch-point mass)
-  alpha = lambda_11*I1;
+  // LAMBDA11_T(t) re-evaluated fresh at every call, same reasoning as
+  // active1/active2 above: exact (not discretized) seasonal forcing.
+  alpha = LAMBDA11_T(t)*I1;
   disc = (I1 > 0) ? ell1*(ell1-1)/I1/(I1+1) : 1;
   *penalty += alpha*disc;
   event_rate += (*rate = alpha*(1-disc)); rate++;
@@ -191,7 +235,7 @@ static double mtbd2_event_rates
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell2); logpi++;
   // 10: death in deme 1
-  alpha = mu1*I1;
+  alpha = mu1_eff*I1;
   if (I1 > ell1) {
     event_rate += (*rate = alpha); rate++;
     *logpi = 0; logpi++;
@@ -201,7 +245,7 @@ static double mtbd2_event_rates
     *penalty += alpha;
   }
   // 11: death in deme 2
-  alpha = mu2*I2;
+  alpha = mu2_eff*I2;
   if (I2 > ell2) {
     event_rate += (*rate = alpha); rate++;
     *logpi = 0; logpi++;
@@ -211,7 +255,7 @@ static double mtbd2_event_rates
     *penalty += alpha;
   }
   // sampling (both channels; always singular -- decay only)
-  *penalty += psi1*I1 + psi2*I2;
+  *penalty += psi1_eff*I1 + psi2_eff*I2;
   assert(R_FINITE(event_rate));
   return event_rate;
 }
@@ -233,6 +277,8 @@ void mtbd2_rinit
   ell2 = 0;
   N12 = 0;
   N21 = 0;
+  N12A = 0;
+  N21A = 0;
   ll = 0;
   node = 0;
 }
@@ -272,6 +318,14 @@ void mtbd2_gill
   int parlin = lineage[parent];
   int parcol = color[parlin];
   assert(parlin >= 0 && parlin < nsample);
+
+  // Sampling-active window at this node's own time t (see the FIRST1/LAST1
+  // macro comment): the singular sample-node weight below uses psi_i
+  // directly (not via mtbd2_event_rates), so it needs its own copy of the
+  // same active/effective-rate computation.
+  double active1 = (t >= FIRST1 && t <= LAST1) ? 1.0 : 0.0;
+  double active2 = (t >= FIRST2 && t <= LAST2) ? 1.0 : 0.0;
+  double psi1_eff = psi1*active1, psi2_eff = psi2*active2;
 
   ll = 0;
 
@@ -331,17 +385,17 @@ void mtbd2_gill
       int c = child[index[parent]];
       if (parcol == Type1) {
         color[lineage[c]] = Type1;
-        ll += (I1 > 0) ? log((1-r1)*psi1) : R_NegInf;
+        ll += (I1 > 0) ? log((1-r1)*psi1_eff) : R_NegInf;
       } else if (parcol == Type2) {
         color[lineage[c]] = Type2;
-        ll += (I2 > 0) ? log((1-r2)*psi2) : R_NegInf;
+        ll += (I2 > 0) ? log((1-r2)*psi2_eff) : R_NegInf;
       } else {
         ll += R_NegInf;
       }
     } else if (sat[parent] == 0) { // ambiguous leaf: marginalize destructive/non-destructive
       if (parcol == Type1) {
         ell1 -= 1;
-        ll += (I1 > 0) ? log(psi1) : R_NegInf;
+        ll += (I1 > 0) ? log(psi1_eff) : R_NegInf;
         if (unif_rand() < r1) {        // destructive, proposal prob r1
           ll += log(I1);
           I1 -= 1;
@@ -350,7 +404,7 @@ void mtbd2_gill
         }
       } else if (parcol == Type2) {
         ell2 -= 1;
-        ll += (I2 > 0) ? log(psi2) : R_NegInf;
+        ll += (I2 > 0) ? log(psi2_eff) : R_NegInf;
         if (unif_rand() < r2) {
           ll += log(I2);
           I2 -= 1;
@@ -377,9 +431,9 @@ void mtbd2_gill
       assert(lineage[c1] == parlin || lineage[c2] == parlin);
 
       if (parcol == Type1) {
-        double lam = lambda_11 + lambda_12;
+        double lam = LAMBDA11_T(t) + lambda_12;
         if (lam <= 0) { ll += R_NegInf; break; }
-        double p_11 = lambda_11/lam;
+        double p_11 = LAMBDA11_T(t)/lam;
         if (unif_rand() < p_11) {
           // 1->1 birth: both children type1
           I1 += 1; ell1 += 1;
@@ -389,7 +443,7 @@ void mtbd2_gill
           color[lineage[c2]] = Type1;
         } else {
           // 1->2 birth: one type1, one type2
-          I2 += 1; ell2 += 1; N12 += 1;
+          I2 += 1; ell2 += 1; N12 += 1; N12A += 1;
           ll += log(lam/I2);
           if (I1*I2 <= 0) ll += R_NegInf;
           if (unif_rand() < 0.5) {
@@ -414,7 +468,7 @@ void mtbd2_gill
           color[lineage[c2]] = Type2;
         } else {
           // 2->1 birth: one type2, one type1
-          I1 += 1; ell1 += 1; N21 += 1;
+          I1 += 1; ell1 += 1; N21 += 1; N21A += 1;
           ll += log(lam/I1);
           if (I1*I2 <= 0) ll += R_NegInf;
           if (unif_rand() < 0.5) {
@@ -465,7 +519,7 @@ void mtbd2_gill
       case 3:                   // 1->2 birth, source tracked -> recolor
         mtbd2_change_color(color,nsample,mtbd2_random_choice(ell1),Type1,Type2);
         ell1 -= 1; ell2 += 1;
-        I2 += 1; N12 += 1;
+        I2 += 1; N12 += 1; N12A += 1;
         ll += log(1-ell1/I1)-log(I2);
         assert(!ISNAN(ll));
         break;
@@ -477,7 +531,7 @@ void mtbd2_gill
       case 5:                   // 2->1 birth, source tracked -> recolor
         mtbd2_change_color(color,nsample,mtbd2_random_choice(ell2),Type2,Type1);
         ell2 -= 1; ell1 += 1;
-        I1 += 1; N21 += 1;
+        I1 += 1; N21 += 1; N21A += 1;
         ll += log(1-ell2/I2)-log(I1);
         assert(!ISNAN(ll));
         break;

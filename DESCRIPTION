@@ -42,6 +42,7 @@ Collate:
     'mtbd2_pomp.R'
     'mtbd2_infer.R'
     'mtbd2_pmcmc.R'
+    'mtbd2_spillover.R'
     'mtbd2_trajectory.R'
     'mtbd2_vs2025.R'
     'mtbd3.R'
