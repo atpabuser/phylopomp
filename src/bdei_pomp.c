@@ -4,13 +4,13 @@
 #define Exposed  1
 #define Infected 2
 
-static const int bdei_nrate = 5;
+static const int nrate = 5;
 
-static inline int bdei_random_choice (double n) {
+static inline int random_choice (double n) {
   return floor(R_unif_index(n));
 }
 
-static void bdei_change_color (double *color, int nsample,
+static void change_color (double *color, int nsample,
                           int n, int from, int to) {
   int i = -1;
   while (n >= 0 && i < nsample) {
@@ -38,12 +38,12 @@ static void bdei_change_color (double *color, int nsample,
 #define ellI      (__x[__stateindex[5]])
 #define COLOR     (__x[__stateindex[6]])
 
-#define BDEI_EVENT_RATES                                \
-  bdei_event_rates(__x,__p,t,                           \
-              __stateindex,__parindex,__covindex,        \
-              __covars,rate,logpi,&penalty)
+#define EVENT_RATES                                     \
+  event_rates(__x,__p,t,                                \
+              __stateindex,__parindex,__covindex,       \
+              __covars,rate,logpi,&penalty)             \
 
-static double bdei_event_rates
+static double event_rates
 (
  double *__x,
  const double *__p,
@@ -59,32 +59,29 @@ static double bdei_event_rates
   double event_rate = 0;
   double alpha, pi;
   *penalty = 0;
-  // 0: birth (lambda*I), s=(0,0) or s=(0,1)
-  // Support-safe (uniform) proposal: the identity-coloring alternative has
-  // Phi_B^0 = (E-ellE)/E, independent of I,ellI (KLI Prop. 2(1) collapse),
-  // so pi must not depend on I,ellI in a way that can vanish while I>0.
+  // 0: birth, s=(0,0) or s=(0,1)
   assert(I >= ellI);
   assert(ellI >= 0);
   alpha = lambda*I;
   pi = 1/(ellI+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  // 1: birth (lambda*I), s=(1,0)
+  // 1: birth, s=(1,0)
   pi = ellI/(ellI+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ellI); logpi++;
-  // 2: progression (sigma*E), s=(0,0)
+  // 2: progression, s=(0,0)
   assert(E >= ellE);
   assert(ellE >= 0);
   alpha = sigma*E;
   pi = (E > 0) ? 1-ellE/E : 1;
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  // 3: progression (sigma*E), s=(0,1)
+  // 3: progression, s=(0,1)
   pi = 1-pi;
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ellE); logpi++;
-  // 4: death (mu*I)
+  // 4: death
   alpha = mu*I;
   if (I > ellI) {
     event_rate += (*rate = alpha); rate++;
@@ -94,12 +91,18 @@ static double bdei_event_rates
     *logpi = 0; logpi++;
     *penalty += alpha;
   }
-  // sampling (destructive only)
+  // sampling (Q = 0): destructive only
   *penalty += chi*I;
   assert(R_FINITE(event_rate));
   return event_rate;
 }
 
+//! Latent-state initializer (rinit component).
+//!
+//! The state variables include E, I
+//! plus 'ellE' and 'ellI' (numbers of E- and I-deme lineages),
+//! the accumulated weight ('ll'), the current node number ('node'),
+//! and the coloring of each lineage ('COLOR').
 void bdei_rinit
 (
  double *__x,
@@ -119,6 +122,10 @@ void bdei_rinit
   node = 0;
 }
 
+//! Simulator for the latent-state process (rprocess).
+//!
+//! This is the Gillespie algorithm applied to the solution of the
+//! filter equation for the BDEI process.
 void bdei_gill
 (
  double *__x,
@@ -196,8 +203,8 @@ void bdei_gill
       ll += (I > 0) ? log(chi*I) : R_NegInf;
       I -= 1;
     } else {
-      assert(0);
-      ll += R_NegInf;
+      assert(0);                // #nocov
+      ll += R_NegInf;           // #nocov
     }
     color[parlin] = R_NaReal;
     break;
@@ -234,17 +241,17 @@ void bdei_gill
   // continuous portion of filter equation
   if (tmax > t && R_FINITE(ll)) {
 
-    double rate[bdei_nrate], logpi[bdei_nrate];
+    double rate[nrate], logpi[nrate];
     int event;
     double event_rate = 0;
     double penalty = 0;
 
-    event_rate = BDEI_EVENT_RATES;
+    event_rate = EVENT_RATES;
     tstep = exp_rand()/event_rate;
 
     while (t + tstep < tmax) {
-      event = rcateg(event_rate,rate,bdei_nrate);
-      assert(event>=0 && event<bdei_nrate);
+      event = rcateg(event_rate,rate,nrate);
+      assert(event>=0 && event<nrate);
       ll -= penalty*tstep + logpi[event];
       switch (event) {
       case 0:                   // birth, s=(0,0) or s=(0,1)
@@ -253,7 +260,7 @@ void bdei_gill
         assert(!ISNAN(ll));
         break;
       case 1:                   // birth, s=(1,0)
-        bdei_change_color(color,nsample,bdei_random_choice(ellI),Infected,Exposed);
+        change_color(color,nsample,random_choice(ellI),Infected,Exposed);
         ellE += 1; ellI -= 1;
         E += 1;
         ll += log(1-ellI/I)-log(E);
@@ -267,7 +274,7 @@ void bdei_gill
         break;
       case 3:                   // progression, s=(0,1)
         assert(E>=1);
-        bdei_change_color(color,nsample,bdei_random_choice(ellE),Exposed,Infected);
+        change_color(color,nsample,random_choice(ellE),Exposed,Infected);
         ellE -= 1; ellI += 1;
         E -= 1; I += 1;
         ll -= log(I);
@@ -287,7 +294,7 @@ void bdei_gill
       ellI = nearbyint(ellI);
 
       t += tstep;
-      event_rate = BDEI_EVENT_RATES;
+      event_rate = EVENT_RATES;
       tstep = exp_rand()/event_rate;
 
     }
@@ -299,6 +306,7 @@ void bdei_gill
 
 # define lik  (__lik[0])
 
+//! Measurement model likelihood (dmeasure).
 void bdei_dmeas
 (
  double *__lik,

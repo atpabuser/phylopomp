@@ -4,13 +4,13 @@
 #define Normal       1
 #define Superspreader 2
 
-static const int bdss_nrate = 8;
+static const int nrate = 8;
 
-static inline int bdss_random_choice (double n) {
+static inline int random_choice (double n) {
   return floor(R_unif_index(n));
 }
 
-static void bdss_change_color (double *color, int nsample,
+static void change_color (double *color, int nsample,
                           int n, int from, int to) {
   int i = -1;
   while (n >= 0 && i < nsample) {
@@ -40,12 +40,12 @@ static void bdss_change_color (double *color, int nsample,
 #define ell2      (__x[__stateindex[5]])
 #define COLOR     (__x[__stateindex[6]])
 
-#define BDSS_EVENT_RATES                                \
-  bdss_event_rates(__x,__p,t,                           \
-              __stateindex,__parindex,__covindex,        \
-              __covars,rate,logpi,&penalty)
+#define EVENT_RATES                                     \
+  event_rates(__x,__p,t,                                \
+              __stateindex,__parindex,__covindex,       \
+              __covars,rate,logpi,&penalty)             \
 
-static double bdss_event_rates
+static double event_rates
 (
  double *__x,
  const double *__p,
@@ -63,39 +63,33 @@ static double bdss_event_rates
   *penalty = 0;
   assert(N >= ell1 && ell1 >= 0);
   assert(S >= ell2 && ell2 >= 0);
-  // 0: N->N birth (within-type, disc penalty)
+  // 0: N->N birth, s=(0,0) or s=(1,0)
   alpha = lambda_nn*N;
   disc = (N > 0) ? ell1*(ell1-1)/N/(N+1) : 1;
   *penalty += alpha*disc;
   event_rate += (*rate = alpha*(1-disc)); rate++;
   *logpi = 0; logpi++;
-  // 1: N->S birth, s=(0,0) or s=(0,1) — parent N untracked
-  // Support-safe (uniform) proposal: Phi_ns^0 = 1-ellS/S is an S-side
-  // quantity (KLI Prop. 2 mirror) and does not depend on N,ell1, so pi
-  // must not be allowed to vanish while N>0.
+  // 1: N->S birth, s=(0,0) or s=(0,1)
   alpha = lambda_ns*N;
   pi = 1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  // 2: N->S birth, s=(1,0) — parent N tracked, lineage to S
+  // 2: N->S birth, s=(1,0)
   pi = ell1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell1); logpi++;
-  // 3: S->S birth (within-type, disc penalty)
+  // 3: S->S birth, s=(0,0) or s=(0,1)
   alpha = lambda_ss*S;
   disc = (S > 0) ? ell2*(ell2-1)/S/(S+1) : 1;
   *penalty += alpha*disc;
   event_rate += (*rate = alpha*(1-disc)); rate++;
   *logpi = 0; logpi++;
-  // 4: S->N birth, s=(0,0) or s=(1,0) — parent S untracked
-  // Support-safe (uniform) proposal: Phi_sn^0 = 1-ellN/N is an N-side
-  // quantity (KLI Prop. 2 mirror) and does not depend on S,ell2, so pi
-  // must not be allowed to vanish while S>0.
+  // 4: S->N birth, s=(0,0) or s=(1,0)
   alpha = lambda_sn*S;
   pi = 1/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  // 5: S->N birth, s=(0,1) — parent S tracked, lineage to N
+  // 5: S->N birth, s=(0,1)
   pi = ell2/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell2); logpi++;
@@ -119,12 +113,18 @@ static double bdss_event_rates
     *logpi = 0; logpi++;
     *penalty += alpha;
   }
-  // sampling (destructive only)
+  // sampling (Q = 0): destructive only
   *penalty += chi*(N+S);
   assert(R_FINITE(event_rate));
   return event_rate;
 }
 
+//! Latent-state initializer (rinit component).
+//!
+//! The state variables include N, S
+//! plus 'ell1' and 'ell2' (numbers of N- and S-deme lineages),
+//! the accumulated weight ('ll'), the current node number ('node'),
+//! and the coloring of each lineage ('COLOR').
 void bdss_rinit
 (
  double *__x,
@@ -144,6 +144,10 @@ void bdss_rinit
   node = 0;
 }
 
+//! Simulator for the latent-state process (rprocess).
+//!
+//! This is the Gillespie algorithm applied to the solution of the
+//! filter equation for the BDSS process.
 void bdss_gill
 (
  double *__x,
@@ -298,30 +302,30 @@ void bdss_gill
   // continuous portion of filter equation
   if (tmax > t && R_FINITE(ll)) {
 
-    double rate[bdss_nrate], logpi[bdss_nrate];
+    double rate[nrate], logpi[nrate];
     int event;
     double event_rate = 0;
     double penalty = 0;
 
-    event_rate = BDSS_EVENT_RATES;
+    event_rate = EVENT_RATES;
     tstep = exp_rand()/event_rate;
 
     while (t + tstep < tmax) {
-      event = rcateg(event_rate,rate,bdss_nrate);
-      assert(event>=0 && event<bdss_nrate);
+      event = rcateg(event_rate,rate,nrate);
+      assert(event>=0 && event<nrate);
       ll -= penalty*tstep + logpi[event];
       switch (event) {
       case 0:                   // N->N birth
         N += 1;
         assert(!ISNAN(ll));
         break;
-      case 1:                   // N->S birth, parent untracked
+      case 1:                   // N->S birth, s=(0,0) or s=(0,1)
         S += 1;
         ll += log(1-ell2/S);
         assert(!ISNAN(ll));
         break;
-      case 2:                   // N->S birth, parent tracked, lineage to S
-        bdss_change_color(color,nsample,bdss_random_choice(ell1),Normal,Superspreader);
+      case 2:                   // N->S birth, s=(1,0)
+        change_color(color,nsample,random_choice(ell1),Normal,Superspreader);
         ell1 -= 1; ell2 += 1;
         S += 1;
         ll += log(1-ell1/N)-log(S);
@@ -331,13 +335,13 @@ void bdss_gill
         S += 1;
         assert(!ISNAN(ll));
         break;
-      case 4:                   // S->N birth, parent untracked
+      case 4:                   // S->N birth, s=(0,0) or s=(1,0)
         N += 1;
         ll += log(1-ell1/N);
         assert(!ISNAN(ll));
         break;
-      case 5:                   // S->N birth, parent tracked, lineage to N
-        bdss_change_color(color,nsample,bdss_random_choice(ell2),Superspreader,Normal);
+      case 5:                   // S->N birth, s=(0,1)
+        change_color(color,nsample,random_choice(ell2),Superspreader,Normal);
         ell2 -= 1; ell1 += 1;
         N += 1;
         ll += log(1-ell2/S)-log(N);
@@ -360,7 +364,7 @@ void bdss_gill
       ell2 = nearbyint(ell2);
 
       t += tstep;
-      event_rate = BDSS_EVENT_RATES;
+      event_rate = EVENT_RATES;
       tstep = exp_rand()/event_rate;
 
     }
@@ -372,6 +376,7 @@ void bdss_gill
 
 # define lik  (__lik[0])
 
+//! Measurement model likelihood (dmeasure).
 void bdss_dmeas
 (
  double *__lik,
