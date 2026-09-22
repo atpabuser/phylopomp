@@ -49,6 +49,20 @@ static void mtbd2_change_color (double *color, int nsample,
   color[i] = to;
 }
 
+#ifndef NDEBUG
+static int mtbd2_check_color (double *color, int nsample,
+                              double ell1, double ell2) {
+  int n1 = 0, n2 = 0;
+  for (int i = 0; i < nsample; i++) {
+    if (ISNA(color[i])) continue;
+    if (nearbyint(color[i]) == Type1) n1++;
+    else if (nearbyint(color[i]) == Type2) n2++;
+    else return 0;
+  }
+  return (n1 == (int) nearbyint(ell1)) && (n2 == (int) nearbyint(ell2));
+}
+#endif
+
 #define lambda_11 (__p[__parindex[0]])
 #define lambda_12 (__p[__parindex[1]])
 #define lambda_21 (__p[__parindex[2]])
@@ -161,8 +175,12 @@ static double mtbd2_event_rates
   // its coarser, per-interval-boundary-only resolution) is needed.
   double active1 = (t >= FIRST1 && t <= LAST1) ? 1.0 : 0.0;
   double active2 = (t >= FIRST2 && t <= LAST2) ? 1.0 : 0.0;
-  double psi1_eff = psi1*active1, mu1_eff = mu1 + psi1*(1-active1);
-  double psi2_eff = psi2*active2, mu2_eff = mu2 + psi2*(1-active2);
+  // delta_i = mu_i + r_i*psi_i is what is held constant across the window
+  // boundary (BDMM-Prime EpiParameterization.java), so the rate that mu_i
+  // absorbs outside the window is r_i*psi_i, not psi_i. The two agree only
+  // at r_i = 1.
+  double psi1_eff = psi1*active1, mu1_eff = mu1 + r1*psi1*(1-active1);
+  double psi2_eff = psi2*active2, mu2_eff = mu2 + r2*psi2*(1-active2);
   // 0: 1->1 birth (within-type, disc = missing branch-point mass)
   // LAMBDA11_T(t) re-evaluated fresh at every call, same reasoning as
   // active1/active2 above: exact (not discretized) seasonal forcing.
@@ -359,6 +377,7 @@ void mtbd2_gill
         }
       }
     }
+    assert(mtbd2_check_color(color,nsample,ell1,ell2));
     break;
   case 1:                       // sample (destructive and/or non-destructive)
     if (obstype) {
@@ -419,6 +438,7 @@ void mtbd2_gill
       ll += R_NegInf;           // #nocov
     }
     color[parlin] = R_NaReal;
+    assert(mtbd2_check_color(color,nsample,ell1,ell2));
     break;
   case 2:                       // branch point
     assert(sat[parent]==2);
@@ -484,6 +504,7 @@ void mtbd2_gill
         ll += R_NegInf;
       }
     }
+    assert(mtbd2_check_color(color,nsample,ell1,ell2));
     break;
   }
 
@@ -574,6 +595,7 @@ void mtbd2_gill
 
       ell1 = nearbyint(ell1);
       ell2 = nearbyint(ell2);
+      assert(mtbd2_check_color(color,nsample,ell1,ell2));
 
       t += tstep;
       event_rate = MTBD2_EVENT_RATES;
