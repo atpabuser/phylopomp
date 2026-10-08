@@ -16,10 +16,24 @@ bdss_pomp <- function (
 )
 {
   x |> gendat() -> gi
+  pars <- list(
+    lambda_nn=lambda_nn,lambda_ns=lambda_ns,
+    lambda_sn=lambda_sn,lambda_ss=lambda_ss,
+    mu=mu,chi=chi,pop=pop,N0=N0,S0=S0
+  )
+  valid <- vapply(pars,function (p)
+    is.numeric(p) && length(p)==1L && is.finite(p) && p>=0,
+    logical(1))
+  if (any(!valid))
+    pStop(paste(sQuote(names(pars)[!valid]),collapse=","),
+      " must be finite, nonnegative numeric scalars.")
   ivps <- structure(c(N0,S0),names=c("N0","S0"))
-  if (any(ivps < 0))
+  if (!is.finite(sum(ivps)) || sum(ivps) <= 0)
     pStop(paste(sQuote(names(ivps)),collapse=","),
-      " must be nonnegative.")
+      " must have a finite positive sum.")
+  if (!is.finite(pop/sum(ivps)))
+    pStop(sQuote("pop"),"/(",paste(sQuote(names(ivps)),collapse="+"),
+      ") must be finite.")
   pomp(
     data=NULL,
     t0=gi$nodetime[1L],

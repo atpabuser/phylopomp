@@ -15,10 +15,20 @@ bdei_pomp <- function (
 )
 {
   x |> gendat() -> gi
+  pars <- list(sigma=sigma,lambda=lambda,mu=mu,chi=chi,pop=pop,E0=E0,I0=I0)
+  valid <- vapply(pars,function (p)
+    is.numeric(p) && length(p)==1L && is.finite(p) && p>=0,
+    logical(1))
+  if (any(!valid))
+    pStop(paste(sQuote(names(pars)[!valid]),collapse=","),
+      " must be finite, nonnegative numeric scalars.")
   ivps <- structure(c(E0,I0),names=c("E0","I0"))
-  if (any(ivps < 0))
+  if (!is.finite(sum(ivps)) || sum(ivps) <= 0)
     pStop(paste(sQuote(names(ivps)),collapse=","),
-      " must be nonnegative.")
+      " must have a finite positive sum.")
+  if (!is.finite(pop/sum(ivps)))
+    pStop(sQuote("pop"),"/(",paste(sQuote(names(ivps)),collapse="+"),
+      ") must be finite.")
   pomp(
     data=NULL,
     t0=gi$nodetime[1L],

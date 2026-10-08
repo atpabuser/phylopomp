@@ -77,7 +77,7 @@ static double event_rates
   // 2: N->S birth, s=(1,0)
   pi = ell1/(ell1+1);
   event_rate += (*rate = alpha*pi); rate++;
-  *logpi = log(pi)-log(ell1); logpi++;
+  *logpi = (ell1 > 0) ? -log(ell1+1) : 0; logpi++;
   // 3: S->S birth, s=(0,0) or s=(0,1)
   alpha = lambda_ss*S;
   disc = (S > 0) ? ell2*(ell2-1)/S/(S+1) : 1;
@@ -92,7 +92,7 @@ static double event_rates
   // 5: S->N birth, s=(0,1)
   pi = ell2/(ell2+1);
   event_rate += (*rate = alpha*pi); rate++;
-  *logpi = log(pi)-log(ell2); logpi++;
+  *logpi = (ell2 > 0) ? -log(ell2+1) : 0; logpi++;
   // 6: death N
   alpha = mu*N;
   if (N > ell1) {
@@ -135,7 +135,18 @@ void bdss_rinit
  const int *__covindex,
  const double *__covars
  ){
+  if (!R_FINITE(lambda_nn) || lambda_nn < 0 ||
+      !R_FINITE(lambda_ns) || lambda_ns < 0 ||
+      !R_FINITE(lambda_sn) || lambda_sn < 0 ||
+      !R_FINITE(lambda_ss) || lambda_ss < 0 ||
+      !R_FINITE(mu) || mu < 0 || !R_FINITE(chi) || chi < 0)
+    err("BDSS rates must be finite and nonnegative.");
+  if (!R_FINITE(POP) || POP < 0 ||
+      !R_FINITE(N0) || N0 < 0 || !R_FINITE(S0) || S0 < 0 ||
+      !R_FINITE(N0+S0) || N0+S0 <= 0)
+    err("BDSS initial values must be finite and nonnegative, with N0+S0 > 0.");
   double adj = POP/(N0+S0);
+  if (!R_FINITE(adj)) err("BDSS: pop/(N0+S0) must be finite.");
   N = nearbyint(N0*adj);
   S = nearbyint(S0*adj);
   ell1 = 0;
@@ -182,6 +193,7 @@ void bdss_gill
 
   ll = 0;
 
+  // singular portion of filter equation
   switch (nodetype[parent]) {
   default:
     break;
@@ -299,7 +311,7 @@ void bdss_gill
     break;
   }
 
-  // continuous portion of filter equation
+  // regular portion of filter equation
   if (tmax > t && R_FINITE(ll)) {
 
     double rate[nrate], logpi[nrate];
