@@ -69,7 +69,7 @@ static double event_rates
   // 1: birth, s=(1,0)
   pi = ellI/(ellI+1);
   event_rate += (*rate = alpha*pi); rate++;
-  *logpi = log(pi)-log(ellI); logpi++;
+  *logpi = (ellI > 0) ? -log(ellI+1) : 0; logpi++;
   // 2: progression, s=(0,0)
   assert(E >= ellE);
   assert(ellE >= 0);
@@ -80,7 +80,7 @@ static double event_rates
   // 3: progression, s=(0,1)
   pi = 1-pi;
   event_rate += (*rate = alpha*pi); rate++;
-  *logpi = log(pi)-log(ellE); logpi++;
+  *logpi = (ellE > 0) ? log(pi)-log(ellE) : 0; logpi++;
   // 4: death
   alpha = mu*I;
   if (I > ellI) {
@@ -113,7 +113,16 @@ void bdei_rinit
  const int *__covindex,
  const double *__covars
  ){
+  if (!R_FINITE(sigma) || sigma < 0 ||
+      !R_FINITE(lambda) || lambda < 0 ||
+      !R_FINITE(mu) || mu < 0 || !R_FINITE(chi) || chi < 0)
+    err("BDEI rates must be finite and nonnegative.");
+  if (!R_FINITE(POP) || POP < 0 ||
+      !R_FINITE(E0) || E0 < 0 || !R_FINITE(I0) || I0 < 0 ||
+      !R_FINITE(E0+I0) || E0+I0 <= 0)
+    err("BDEI initial values must be finite and nonnegative, with E0+I0 > 0.");
   double adj = POP/(E0+I0);
+  if (!R_FINITE(adj)) err("BDEI: pop/(E0+I0) must be finite.");
   E = nearbyint(E0*adj);
   I = nearbyint(I0*adj);
   ellE = 0;
@@ -160,6 +169,7 @@ void bdei_gill
 
   ll = 0;
 
+  // singular portion of filter equation
   switch (nodetype[parent]) {
   default:
     break;
@@ -238,7 +248,7 @@ void bdei_gill
     break;
   }
 
-  // continuous portion of filter equation
+  // regular portion of filter equation
   if (tmax > t && R_FINITE(ll)) {
 
     double rate[nrate], logpi[nrate];

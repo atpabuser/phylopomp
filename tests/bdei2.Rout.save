@@ -50,7 +50,7 @@ Type 'q()' to quit R.
 +       pop=3, E0=-1, I0=3
 +     ) -> po
 + )
-Error : in ‘bdei_pomp’: ‘E0’,‘I0’ must be nonnegative.
+Error : in ‘bdei_pomp’: ‘E0’ must be finite, nonnegative numeric scalars.
 > 
 > G |>
 +   bdei_pomp(
