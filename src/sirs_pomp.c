@@ -134,7 +134,7 @@ void sirs_gill
 	ll += log(I-ellI);
       } else {			// destructive sample
 	ll += log(I);
-	I -= 1;
+	I -= 1; R += 1;
       }
     } else {
       assert(0);                // #nocov
