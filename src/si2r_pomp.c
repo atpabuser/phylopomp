@@ -305,7 +305,7 @@ void si2rs_gill
     break;
   }
 
-  // continuous portion of filter equation:
+  // regular portion of filter equation:
   // take Gillespie steps to the end of the interval
   if (tmax > t && R_FINITE(ll)) {
 
