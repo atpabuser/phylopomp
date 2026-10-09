@@ -238,18 +238,24 @@ static double mtbd2_event_rates
   // the proposal (which *did* use deme 1's occupancy, per the audited
   // naive kernel) needed the support-safety fix, same as events 2-5 above.
   alpha = m12*I1;
-  pi = 1/(ell1+1);
+  // The migrant carries its own lineage, so an untracked migrant needs
+  // an untracked host: with I1 == ell1 the untracked channel is impossible
+  // (its weight log(1-.../...) is then the log of a negative number).
+  pi = (I1 > ell1) ? 1/(ell1+1) : 0;
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  pi = ell1/(ell1+1);
+  pi = 1-pi;
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell1); logpi++;
   // 8,9: migration 2->1 (source deme is 2) -- mirror of 6,7.
   alpha = m21*I2;
-  pi = 1/(ell2+1);
+  // The migrant carries its own lineage, so an untracked migrant needs
+  // an untracked host: with I2 == ell2 the untracked channel is impossible
+  // (its weight log(1-.../...) is then the log of a negative number).
+  pi = (I2 > ell2) ? 1/(ell2+1) : 0;
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi); logpi++;
-  pi = ell2/(ell2+1);
+  pi = 1-pi;
   event_rate += (*rate = alpha*pi); rate++;
   *logpi = log(pi)-log(ell2); logpi++;
   // 10: death in deme 1
@@ -508,7 +514,7 @@ void mtbd2_gill
     break;
   }
 
-  // continuous portion of filter equation
+  // regular portion of filter equation
   if (tmax > t && R_FINITE(ll)) {
 
     double rate[mtbd2_nrate], logpi[mtbd2_nrate];
