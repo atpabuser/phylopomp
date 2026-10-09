@@ -1,13 +1,12 @@
 \name{NEWS}
 \title{News for package `phylopomp'}
-\section{Changes in \pkg{phylopomp} version 0.19.8}{
-  \itemize{
-    \item In the SI2R model, destructive sampling now causes the sampled host to enter the R class.
-    Previously, such hosts were removed from the population.
-  }
-}
 \section{Changes in \pkg{phylopomp} version 0.19.5}{
   \itemize{
+    \item In the SI2R model, destructive sampling now causes the sampled host to enter the R class, in both the simulator and the \code{si2rs_pomp} filter.
+    Previously, such hosts were removed from the population.
+    \item Some errors in the \code{si2rs_pomp} filter have been corrected.
+    \item \code{bdei_pomp} and \code{bdss_pomp} now require finite, nonnegative parameters and a positive sum of initial values.
+    \item In the \code{mtbd2_pomp} filter, an untracked migrant now requires an untracked host.
     \item New \code{cblv} function for computing the compact, bijective, ladderized vector (CBLV) representation of a pruned, obscured genealogy.
     \item New \code{parse_cblv} function for converting the CBLV representation into a genealogy (class-\sQuote{gpgen} object).
     \item Node names are no longer included in Newick-format output.
